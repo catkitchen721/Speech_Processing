@@ -14,7 +14,7 @@ for u in dual_amp_data:
 print(sample_rate) # 取樣頻率
 
 # 畫各個contour
-fig, ax = plt.subplots(nrows=3, figsize=(12.0, 7.2))
+fig, ax = plt.subplots(nrows=4, figsize=(12.0, 7.5))
 
 # waveform
 ax[0].plot(amp_data, '-b', linewidth=0.5)
@@ -25,7 +25,7 @@ ax[0].grid(True)
 
 # Energy
 N = 450 # (for 44100Hz, 10.2ms)
-energy_x = list(range(N//2, 244480, N))
+energy_x = list(range(N//2, len(amp_data) - N, N))
 energy_data = []
 for u_x in energy_x:
     u_y = np.int64(0)
@@ -40,7 +40,7 @@ ax[1].grid(True)
 
 # Zero-Crossing Rate
 N = 450 # (for 44100Hz, 10.2ms)
-zcr_x = list(range(N//2, 244480, N))
+zcr_x = list(range(N//2, len(amp_data) - N, N))
 zcr_data = []
 for u_x in zcr_x:
     u_y = 0
@@ -62,6 +62,65 @@ ax[2].set_xlabel('Time')
 ax[2].set_ylabel('ZCR(times)')
 ax[2].title.set_text('Zero-Crossing Rate Contour (Window = 10.2ms)')
 ax[2].grid(True)
+
+# End Point Detection
+N = 450 # (for 44100Hz, 10.2ms)
+ignore_threshold = 4500
+ITU = 1 * 1e10
+ITL = 4e9
+IZCT = 30
+is_begun = False
+is_ended = True
+points = [] # end points
+
+for i in range(len(energy_data)): # first scan
+    if energy_x[i] > ignore_threshold:
+        if is_ended: # 尋找起點
+            if energy_data[i] > ITU:
+                points.append(energy_x[i])
+                is_begun = True
+                is_ended = False
+        if is_begun: # 尋找終點
+            if energy_data[i] < ITU:
+                points.append(energy_x[i])
+                is_begun = False
+                is_ended = True
+
+points2 = [points[0]]
+for i in range(len(points)): # remove bugs
+    if (i != 0) and (i != (len(points) - 1)) and (i % 2 == 1) :
+        if abs(points[i] - points[i+1]) > 5 * N:
+            points2.append(points[i])
+            points2.append(points[i+1])
+points2.append(points[-1])
+
+'''
+for i in range(len(points2) - 1): # find real points
+    if (i % 2 == 0): # backward
+        for j in range(len(energy_x)):
+            if energy_x[j] == points2[i]:
+                for k in range(8):
+                    if energy_data[j-k-1] < ITL:
+                        points2[i] = energy_x[j-k-1]
+    else: # forward
+        for j in range(len(energy_x)):
+            if energy_x[j] == points2[i]:
+                for k in range(8):
+                    if energy_data[j+k+1] < ITL:
+                        points2[i] = energy_x[j+k+1]
+'''
+print("End-Point:")
+print(points2)
+
+# Pitch 
+points2_y = np.zeros(len(points2))
+ax[3].plot(energy_x, energy_data, '-r', linewidth=0.5, label='energy')
+ax[3].plot(points2, points2_y, '.k', linewidth=2, label='end_point')
+ax[3].set_xlabel('Time')
+ax[3].set_ylabel('Energy and Pitch Contour')
+ax[3].title.set_text('End-Points and Pitch Contour (Window = 10.2ms)')
+ax[3].legend(loc="upper right")
+ax[3].grid(True)
 
 # show figure
 plt.tight_layout()
