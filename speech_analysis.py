@@ -14,7 +14,7 @@ for u in dual_amp_data:
 print(sample_rate) # 取樣頻率
 
 # 畫各個contour
-fig, ax = plt.subplots(nrows=4, figsize=(12.0, 7.5))
+fig, ax = plt.subplots(nrows=4, figsize=(12.0, 8.0))
 
 # waveform
 ax[0].plot(amp_data, '-b', linewidth=0.5)
@@ -32,10 +32,10 @@ for u_x in energy_x:
     for i in range(N):
         u_y += (amp_data[u_x - N//2 + i]) ** 2
     energy_data.append(u_y)
-ax[1].plot(energy_x, energy_data, '-r', linewidth=0.5)
+ax[1].plot(energy_x, energy_data, '-r', linewidth=0.5, label='energy')
 ax[1].set_xlabel('Time')
 ax[1].set_ylabel('Energy')
-ax[1].title.set_text('Energy Contour (Window = 10.2ms)')
+ax[1].title.set_text('Energy Contour (Window = 10.2ms), with end-points')
 ax[1].grid(True)
 
 # Zero-Crossing Rate
@@ -111,15 +111,37 @@ for i in range(len(points2) - 1): # find real points
 '''
 print("End-Point:")
 print(points2)
+points2_y = np.zeros(len(points2))
+ax[1].plot(points2, points2_y, '.k', linewidth=2, label='end_point')
+ax[1].legend(loc="upper right")
 
 # Pitch 
-points2_y = np.zeros(len(points2))
-ax[3].plot(energy_x, energy_data, '-r', linewidth=0.5, label='energy')
-ax[3].plot(points2, points2_y, '.k', linewidth=2, label='end_point')
+short_time = N / sample_rate # 0.0102s = 10.2ms
+pitch_x = []
+pitch_data = []
+
+zcr_dict = {}
+for i in range(len(zcr_x)):
+    zcr_dict[zcr_x[i]] = i
+# print(zcr_dict)
+
+i = 0
+while i < len(points2):
+    start = zcr_dict[points2[i]]
+    end = zcr_dict[points2[i+1]]
+    for j in range(len(zcr_x)):
+        if j >= start and j <= end:
+            freq = int(zcr_data[j] / short_time) # 算頻率
+            if freq < 3000:
+                pitch_x.append(zcr_x[j])
+                pitch_data.append(freq)
+    i += 2
+# print(pitch_x)
+# print(pitch_data)
+ax[3].plot(pitch_x, pitch_data, '.k', linewidth=1)
 ax[3].set_xlabel('Time')
-ax[3].set_ylabel('Energy and Pitch Contour')
-ax[3].title.set_text('End-Points and Pitch Contour (Window = 10.2ms)')
-ax[3].legend(loc="upper right")
+ax[3].set_ylabel('Pitch Contour')
+ax[3].title.set_text('Pitch Contour (Window = 10.2ms)')
 ax[3].grid(True)
 
 # show figure
